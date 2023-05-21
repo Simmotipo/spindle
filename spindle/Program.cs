@@ -90,11 +90,12 @@ namespace Spindle
             }
             else
             {
-                if (File.Exists(args[0])) { fPath = args[0]; fileMode = true; }
+                /*if (File.Exists(args[0])) { fPath = args[0]; fileMode = true; }
                 else fileMode = false;
 
                 srcUrl = args[1];
-                dstUrl = args[2];
+                dstUrl = args[2];*/
+                Console.WriteLine("Please re-run without args and use the prompter instead for now; sorry!");
             }
         }
     }

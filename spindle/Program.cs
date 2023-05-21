@@ -102,6 +102,7 @@ namespace Spindle
             lastRead = DateTime.UtcNow;
             target = dstUrl;
             fSize = new FileInfo(fPath).Length;
+            reader();
         }
 
         static void reader()

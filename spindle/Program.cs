@@ -1,18 +1,19 @@
 ﻿using System.Diagnostics;
 using System.Net.NetworkInformation;
 using System.Security.Cryptography;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Spindle
 {
     class Program
     {
         static bool fileMode;
-        static string fPath;
-        static string srcUrl;
-        static string dstUrl;
+        static string fPath = "";
+        static string? srcUrl = "";
+        static string? dstUrl = "";
         static double megabitsPerSecond;
         static double pktDelay;
-        static double pktSize = 1312d;
+        static readonly double pktSize = 1312d;
         
 
         public static void Main(string[] args)
@@ -36,10 +37,13 @@ namespace Spindle
                 {
                     fileMode = false;
                     Console.WriteLine("FILE or MEM mode? MEM");
+                    Console.WriteLine("MEM mode is not yet implemented. Sorry.");
+                    Console.ReadLine();
+                    Environment.Exit(0);
                 }
 
                 //Get FILE PATH if in FILE mode
-                string temp = "";
+                string? temp = "";
                 if (fileMode)
                 {
                     while (!Directory.Exists(temp))
@@ -71,8 +75,8 @@ namespace Spindle
                 Console.WriteLine($"Delay transmission of {megabitsPerSecond}Mbps stream from {srcUrl} to {dstUrl} by {Math.Round(pktDelay)} packets");
                 Console.ReadLine();
 
-                fileBufferReader fbr = new fileBufferReader(udpPeriod, fPath, (int)-(pktDelay * pktSize), (int)pktSize, dstUrl);
-                fileBufferWriter fbw = new fileBufferWriter(fPath, (int)pktSize, srcUrl);
+                FileBufferReader fbr = new(udpPeriod, fPath, (int)-(pktDelay * pktSize), (int)pktSize, dstUrl);
+                FileBufferWriter fbw = new(fPath, (int)pktSize, srcUrl);
 
             }
             else
@@ -86,18 +90,22 @@ namespace Spindle
         }
     }
 
-    class fileBufferReader
+    class FileBufferReader
     {
         static double millisPerPkt;
-        static string fPath;
+        static string fPath = "";
         static double fSize;
         static int ptrLoc;
         static int pktSize;
-        static string target;
+        static string target = "";
         static DateTime lastRead;
 
-        public fileBufferReader(double udpPeriod, string filePath, int startIndex, int packetSize, string dstUrl)
+        public FileBufferReader(double udpPeriod, string filePath, int startIndex, int packetSize, string? dstUrl)
         {
+            if (dstUrl is null)
+            {
+                throw new ArgumentNullException(nameof(dstUrl));
+            }
             millisPerPkt = udpPeriod * 1000;
             fPath = filePath;
             ptrLoc = startIndex;
@@ -107,10 +115,10 @@ namespace Spindle
             fSize = new FileInfo(fPath).Length;
             
             //Initiate this void in a background thread!!
-            reader();
+            Reader();
         }
 
-        static void reader()
+        static void Reader()
         {
             while (true)
             {
@@ -119,12 +127,12 @@ namespace Spindle
                     if (ptrLoc >= 0)
                     {
                         byte[] data = new byte[pktSize];
-                        using (BinaryReader reader = new BinaryReader(new FileStream(fPath, FileMode.Open)))
+                        using (BinaryReader reader = new(new FileStream(fPath, FileMode.Open)))
                         {
                             reader.BaseStream.Seek(ptrLoc, SeekOrigin.Begin);
                             reader.Read(data, 0, pktSize);
                         }
-                        send(data);
+                        Send(data);
                     }
                     
                     ptrLoc += pktSize;
@@ -134,22 +142,32 @@ namespace Spindle
             }
         }
 
-        static void send(byte[] data)
+        static void Send(byte[] data)
         {
+            if (data is null)
+            {
+                throw new ArgumentNullException(nameof(data));
+            }
+
+            _ = new byte[10];
             //Send byte[] data to string target
         }
     }
 
-    class fileBufferWriter
+    class FileBufferWriter
     {
-        static string fPath;
+        static string fPath = "";
         static double fSize;
         static int ptrLoc;
         static int pktSize;
-        static string source;
+        static string source = "";
 
-        public fileBufferWriter(string filePath, int packetSize, string srcUrl)
+        public FileBufferWriter(string filePath, int packetSize, string? srcUrl)
         {
+            if (srcUrl is null)
+            {
+                throw new ArgumentNullException(nameof(srcUrl));
+            }
             fPath = filePath;
             fSize = new FileInfo(fPath).Length;
             ptrLoc = 0;
@@ -157,18 +175,19 @@ namespace Spindle
             source = srcUrl;
 
             //Initiate this void in a background thread!!
-            udpListen();
+            UdpListen();
         }
 
-        static void udpListen()
+        static void UdpListen()
         {
             //do whatevers
             //on byte receive - write(data);
+            Write(new byte[10]);
         }
 
-        static void write(byte[] data)
+        static void Write(byte[] data)
         {
-            using (FileStream fs = new FileStream(fPath, FileMode.Open))
+            using (FileStream fs = new(fPath, FileMode.Open))
             {
                 fs.Position = ptrLoc;
                 fs.Write(data);

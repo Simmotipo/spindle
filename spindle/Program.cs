@@ -1,9 +1,4 @@
-﻿using System.Diagnostics;
-using System.Net.NetworkInformation;
-using System.Security.Cryptography;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-
-namespace Spindle
+﻿namespace Spindle
 {
     class Program
     {

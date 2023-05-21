@@ -124,7 +124,7 @@ namespace Spindle
                     
                     ptrLoc += pktSize;
                     if (ptrLoc + pktSize > fSize) ptrLoc = 0;
-                    lastRead = DateTime.UtcNow;
+                    lastRead = lastRead.AddMilliseconds(millisPerPkt);
                 }
             }
         }

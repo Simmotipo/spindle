@@ -1,4 +1,9 @@
-﻿namespace Spindle
+﻿using System.Net.Sockets;
+using System.Net;
+using System.Text;
+using static Spindle.UdpServer;
+
+namespace Spindle
 {
     class Program
     {
@@ -70,8 +75,17 @@
                 Console.WriteLine($"Delay transmission of {megabitsPerSecond}Mbps stream from {srcUrl} to {dstUrl} by {Math.Round(pktDelay)} packets");
                 Console.ReadLine();
 
+                int fSize = (int)(pktDelay * pktSize) + (int)(pktSize * 100);
+                fPath += srcUrl.Replace(".", "-") + ".buf";
+
+                byte[] buffer = new byte[fSize];
+
+                File.WriteAllBytes(fPath, buffer);
+
+
                 FileBufferReader fbr = new(udpPeriod, fPath, (int)-(pktDelay * pktSize), (int)pktSize, dstUrl);
                 FileBufferWriter fbw = new(fPath, (int)pktSize, srcUrl);
+                fbw.me = fbw;
 
             }
             else
@@ -143,9 +157,9 @@
             {
                 throw new ArgumentNullException(nameof(data));
             }
-
-            _ = new byte[10];
-            //Send byte[] data to string target
+            UDPSocket c = new UDPSocket();
+            c.Client(target.Split(':')[0], Convert.ToInt32(target.Split(':')[1]));
+            c.Send(data);
         }
     }
 
@@ -156,6 +170,7 @@
         static int ptrLoc;
         static int pktSize;
         static string source = "";
+        public FileBufferWriter? me = null;
 
         public FileBufferWriter(string filePath, int packetSize, string? srcUrl)
         {
@@ -173,14 +188,14 @@
             UdpListen();
         }
 
-        static void UdpListen()
+        void UdpListen()
         {
-            //do whatevers
-            //on byte receive - write(data);
-            Write(new byte[10]);
+            while (me == null) Thread.Sleep(10);
+            UDPSocket s = new UDPSocket();
+            s.Server(source.Split(':')[0], Convert.ToInt32(source.Split(':')[1]), me);
         }
 
-        static void Write(byte[] data)
+        public void Write(byte[] data)
         {
             using (FileStream fs = new(fPath, FileMode.Open))
             {
@@ -190,6 +205,62 @@
             }
             ptrLoc += pktSize;
             if (ptrLoc + pktSize > fSize) ptrLoc = 0;
+        }
+    }
+
+
+
+    class UdpServer
+    {
+        public class UDPSocket
+        {
+            private Socket _socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            private const int bufSize = 8 * 1024;
+            private State state = new State();
+            private EndPoint epFrom = new IPEndPoint(IPAddress.Any, 0);
+            private AsyncCallback? recv = null;
+            FileBufferWriter fbw;
+
+            public class State
+            {
+                public byte[] buffer = new byte[bufSize];
+            }
+
+            public void Server(string address, int port, FileBufferWriter f)
+            {
+                _socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.ReuseAddress, true);
+                _socket.Bind(new IPEndPoint(IPAddress.Parse(address), port));
+                fbw = f;
+                Receive();
+            }
+
+            public void Client(string address, int port)
+            {
+                _socket.Connect(IPAddress.Parse(address), port);
+                Receive();
+            }
+
+            public void Send(byte[] data)
+            {
+                _socket.BeginSend(data, 0, data.Length, SocketFlags.None, (ar) =>
+                {
+                    State? so = (State?)ar.AsyncState;
+                    int bytes = _socket.EndSend(ar);
+                    Console.WriteLine("SEND: {0}", bytes);
+                }, state);
+            }
+
+            private void Receive()
+            {
+                _socket.BeginReceiveFrom(state.buffer, 0, bufSize, SocketFlags.None, ref epFrom, recv = (ar) =>
+                {
+                    State? so = (State?)ar.AsyncState;
+                    int bytes = _socket.EndReceiveFrom(ar, ref epFrom);
+                    _socket.BeginReceiveFrom(so.buffer, 0, bufSize, SocketFlags.None, ref epFrom, recv, so);
+                    fbw.Write(so.buffer);
+                    Console.WriteLine("RECV: {0}: {1}, {2}", epFrom.ToString(), bytes, Encoding.ASCII.GetString(so.buffer, 0, bytes));
+                }, state);
+            }
         }
     }
 }

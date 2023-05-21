@@ -71,6 +71,9 @@ namespace Spindle
                 Console.WriteLine($"Delay transmission of {megabitsPerSecond}Mbps stream from {srcUrl} to {dstUrl} by {Math.Round(pktDelay)} packets");
                 Console.ReadLine();
 
+                fileBufferReader fbr = new fileBufferReader(udpPeriod, fPath, (int)-(pktDelay * pktSize), (int)pktSize, dstUrl);
+                fileBufferWriter fbw = new fileBufferWriter(fPath, (int)pktSize, srcUrl);
+
             }
             else
             {
@@ -102,6 +105,8 @@ namespace Spindle
             lastRead = DateTime.UtcNow;
             target = dstUrl;
             fSize = new FileInfo(fPath).Length;
+            
+            //Initiate this void in a background thread!!
             reader();
         }
 
@@ -137,23 +142,22 @@ namespace Spindle
 
     class fileBufferWriter
     {
-        static double millisPerPkt;
         static string fPath;
         static double fSize;
         static int ptrLoc;
         static int pktSize;
-        static string target;
-        static DateTime lastRead;
+        static string source;
 
-        public fileBufferWriter(double udpPeriod, string filePath, int startIndex, int packetSize, string dstUrl)
+        public fileBufferWriter(string filePath, int packetSize, string srcUrl)
         {
-            millisPerPkt = udpPeriod * 1000;
             fPath = filePath;
-            ptrLoc = startIndex;
-            pktSize = packetSize;
-            lastRead = DateTime.UtcNow;
-            target = dstUrl;
             fSize = new FileInfo(fPath).Length;
+            ptrLoc = 0;
+            pktSize = packetSize;
+            source = srcUrl;
+
+            //Initiate this void in a background thread!!
+            udpListen();
         }
 
         static void udpListen()
